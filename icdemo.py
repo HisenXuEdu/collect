@@ -49,12 +49,68 @@ def plot_viz():
 
 
 def generate_move(ic,step):
-    ic.move_single([ic.desired_pose_position_[0]+(random.random()-0.5)*10,ic.desired_pose_position_[1]+(random.random()-0.5)*10,ic.desired_pose_position_[2]])
-    sleep(3)
+    while(True):
+        ic.move_single([initial_pose[0]/1000+(random.random()-0.5)/20,initial_pose[1]/1000+(random.random()-0.5)/20,initial_pose[2]/1000])
+        print(ic.desired_pose_position_[0],ic.desired_pose_position_[1],ic.desired_pose_position_[2])
+        ic.change_para(d=[80, 80, 80, 12, 12, 12], k=[500, 500, 500, 5, 5, 5])
+        sleep(3)
 
 
 def trigno_open():
     os.system('python ./emg/emg_record.py')
+
+
+import sys
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QSlider
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QPixmap
+import threading
+from time import sleep
+
+
+class MainWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Image Keyboard Movement")
+        self.setGeometry(100, 100, 500, 500)
+
+        self.origin_label = QLabel(self)
+        self.origin_label.setGeometry(190, 190, 120, 120)
+        self.origin_position = (190, 190)  # 初始位置
+        self.origin_label.setStyleSheet("background-color:blue;border-radius: 15px")
+        self.origin_label.move(*self.origin_position)
+
+        self.image_label = QLabel(self)
+        self.image_label.setGeometry(50, 50, 100, 100)
+        # self.image_label.setPixmap(QPixmap('circle.png').scaled(self.image_label.size())) 
+        self.image_label.setStyleSheet("background-color: green;border-radius: 15px")
+        self.image_position = (200, 200)  # 初始位置
+
+        self.slider = QSlider(Qt.Vertical)
+        self.slider.setValue(50)
+        
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_label)  # 绑定定时器的 timeout 信号到自定义的槽函数 update_label
+        self.timer.start(100)  # 以毫秒为单位设置定时器的间隔（1秒 = 1000毫秒）
+
+    def update_label(self):
+        global pose,initial_pose
+        x_factor=(pose[0]*1000-initial_pose[0])/0.5
+        y_factor=-(pose[1]*1000-initial_pose[1])/0.5
+        print(x_factor,y_factor)
+        if(abs(x_factor)>18 or abs(y_factor)>18):
+            self.image_label.setStyleSheet("background-color: red;border-radius: 15px")
+        else:
+            self.image_label.setStyleSheet("background-color: green;border-radius: 15px")
+        self.image_position = (200+x_factor, 200+y_factor)
+        self.image_label.move(*self.image_position)
+
+def feedback():
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
 
 def qtthread():
     feedback()
@@ -65,31 +121,10 @@ if __name__ == '__main__':
     start = time.time()
     print('开始时间：', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start)))
 
-    p1 = multiprocessing.Process(target=trigno_open)
-    # 启动子进程
-    p1.start()
-    time.sleep(3)
-
-
-    """
-    moving:是否让机械臂运动
-    euler:是否在旋转角度开启阻抗控制
-    plot:是否将运动和力用visdom打印
-    """
-    moving = False
-    euler = False
-    plot = True
-
-    args = sys.argv[1:]
-    if len(args) == 1:
-        moving = str2bool(args[0])
-    elif len(args) == 2:
-        moving = str2bool(args[0])
-        euler = str2bool(args[1])
-    elif len(args) == 3:
-        moving = str2bool(args[0])
-        euler = str2bool(args[1])
-        plot = str2bool(args[2])
+    # p1 = multiprocessing.Process(target=trigno_open)
+    # # 启动子进程
+    # p1.start()
+    # time.sleep(3)
 
 
     dashboard, move = connect_robot()
@@ -106,27 +141,23 @@ if __name__ == '__main__':
     force_thread.daemon = True
     force_thread.start()
 
-    feedback_thread = threading.Thread(target=qtthread)
-    feedback_thread.daemon = True
-    feedback_thread.start()
 
     initial_pose = [138.360397,-472.066620,407.361847,-179.488663,0.264109,179.605057]
+    pose = [138.360397,-472.066620,407.361847,-179.488663,0.264109,179.605057]
     initial_joint = [90.0, 0.0, 100.0, -10.0, -90.0, 0.0]
     print(initial_pose)
     move.MovL(initial_pose[0],initial_pose[1],initial_pose[2],initial_pose[3],initial_pose[4],initial_pose[5])
     move.Sync()
 
+    feedback_thread = threading.Thread(target=qtthread)
+    feedback_thread.daemon = True
+    feedback_thread.start()
+
     ic = IC(initial_pose=[initial_pose[0] / 1000, initial_pose[1] / 1000, initial_pose[2] / 1000, initial_pose[3], initial_pose[4], initial_pose[5]])
 
-    if plot:
-        record = threading.Thread(target=plot_viz)
-        record.daemon = True
-        record.start()
-
-    if moving:
-        tra = threading.Thread(target=generate_move,args=(ic,0.01))
-        tra.daemon = True
-        tra.start()
+    tra = threading.Thread(target=generate_move,args=(ic,0.01))
+    tra.daemon = True
+    tra.start()
 
     while True:
         start_time = time.time()
