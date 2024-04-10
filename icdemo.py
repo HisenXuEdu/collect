@@ -49,11 +49,37 @@ def plot_viz():
 
 
 def generate_move(ic,step):
-    while(True):
-        ic.move_single([initial_pose[0]/1000+(random.random()-0.5)/20,initial_pose[1]/1000+(random.random()-0.5)/20,initial_pose[2]/1000])
-        print(ic.desired_pose_position_[0],ic.desired_pose_position_[1],ic.desired_pose_position_[2])
-        ic.change_para(d=[80, 80, 80, 12, 12, 12], k=[500, 500, 500, 5, 5, 5])
-        sleep(3)
+    time_pos_begin = time.time()
+    print('move开始时间：',time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_pos_begin)))
+    i=0
+    data = []
+    ic.change_para(m=[6, 6, 6, 2, 2, 2],d=[180, 180, 180, 12, 12, 12], k=[1000, 1000, 1000, 5, 5, 5])
+    while(i<30):
+        randx=(random.random()-0.5)/20
+        randy=(random.random()-0.5)/20
+        randz=(random.random()-0.5)/20
+        if(randx<0): randx=randx-0.01
+        else: randx=randx+0.01
+        if(randy<0): randy=randy-0.01
+        else: randy=randy+0.01
+        if(randz<0): randz=randz-0.01
+        else: randz=randz+0.01
+        ic.move_single([initial_pose[0]/1000+randx,initial_pose[1]/1000+randy,initial_pose[2]/1000+randz])
+        # print(ic.desired_pose_position_[0],ic.desired_pose_position_[1],ic.desired_pose_position_[2])
+        sleep(4)
+        time_emg_begin = time.time()
+        data.append([randx,randy,randz])
+        i=i+1
+
+    time_pos_end = time.time()
+    time_end_string = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_pos_end))
+    print('move结束时间：', time_end_string)
+    data_pos_timestamp = np.linspace(int(time_pos_begin*1000), int(time_pos_end*1000), i)  #构建时间戳
+    data = pd.DataFrame(data, columns=None)
+    data['time'] = pd.DataFrame(data_pos_timestamp)
+    print(data.shape)
+
+    data.to_csv('./NData/pos/POS'+str(int(time_pos_begin*1000))+'.csv', index=None)
 
 
 def trigno_open():
@@ -86,9 +112,18 @@ class MainWindow(QWidget):
         self.image_label.setStyleSheet("background-color: green;border-radius: 15px")
         self.image_position = (200, 200)  # 初始位置
 
-        self.slider = QSlider(Qt.Vertical)
+        self.slider_label = QLabel(self)
+        self.slider_label.setGeometry(50, 50, 60, 40)
+        self.slider_label.setStyleSheet("background-color: red;border-radius: 8px")
+        self.slider_label_position = (433, 228)  # 初始位置
+        self.slider_label.move(*self.slider_label_position)
+
+        self.slider = QSlider(self)
         self.slider.setValue(50)
-        
+        self.slider.resize(30, 360)
+        self.slider.move(50, 61)
+        self.slider_position = (450, 70)  # 初始位置
+        self.slider.move(*self.slider_position)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_label)  # 绑定定时器的 timeout 信号到自定义的槽函数 update_label
@@ -98,13 +133,17 @@ class MainWindow(QWidget):
         global pose,initial_pose
         x_factor=(pose[0]*1000-initial_pose[0])/0.5
         y_factor=-(pose[1]*1000-initial_pose[1])/0.5
-        print(x_factor,y_factor)
+        z_factor=(pose[2]*1000-initial_pose[2])
+        # print(x_factor,y_factor,z_factor)
+        self.slider.setValue(50+int(z_factor/100*30))
         if(abs(x_factor)>18 or abs(y_factor)>18):
             self.image_label.setStyleSheet("background-color: red;border-radius: 15px")
         else:
             self.image_label.setStyleSheet("background-color: green;border-radius: 15px")
-        self.image_position = (200+x_factor, 200+y_factor)
+        self.image_position = (200+int(x_factor), 200+int(y_factor))
         self.image_label.move(*self.image_position)
+
+
 
 def feedback():
     app = QApplication(sys.argv)
@@ -121,10 +160,10 @@ if __name__ == '__main__':
     start = time.time()
     print('开始时间：', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start)))
 
-    # p1 = multiprocessing.Process(target=trigno_open)
-    # # 启动子进程
-    # p1.start()
-    # time.sleep(3)
+    p1 = multiprocessing.Process(target=trigno_open)
+    # 启动子进程
+    p1.start()
+    time.sleep(5)
 
 
     dashboard, move = connect_robot()
@@ -152,6 +191,9 @@ if __name__ == '__main__':
     feedback_thread = threading.Thread(target=qtthread)
     feedback_thread.daemon = True
     feedback_thread.start()
+
+    sleep(3)
+
 
     ic = IC(initial_pose=[initial_pose[0] / 1000, initial_pose[1] / 1000, initial_pose[2] / 1000, initial_pose[3], initial_pose[4], initial_pose[5]])
 

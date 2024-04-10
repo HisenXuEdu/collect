@@ -24,10 +24,42 @@ class MainWindow(QWidget):
         self.image_label.setStyleSheet("background-color: green;border-radius: 15px")
         self.image_position = (200, 200)  # 初始位置
 
-        self.slider = QSlider(Qt.Vertical)
+
+        self.slider_label = QLabel(self)
+        self.slider_label.setGeometry(50, 50, 60, 40)
+        self.slider_label.setStyleSheet("background-color: red;border-radius: 8px")
+        self.slider_label_position = (433, 228)  # 初始位置
+        self.slider_label.move(*self.slider_label_position)
+
+
+        self.slider = QSlider(self)
         self.slider.setValue(50)
-        self.slider.resize(200, 28)
+        self.slider.resize(30, 360)
         self.slider.move(50, 61)
+        self.slider_position = (450, 70)  # 初始位置
+        self.slider.move(*self.slider_position)
+        self.slider.setStyleSheet("""
+            # QSlider::groove:vertical {
+            #     background-color: #dddddd;
+            #     height: 10px;
+            #     margin: 0px;
+            # }
+            QSlider::sub-page:vertical {
+                background-color: #00ff00;
+                height: 10px;
+                margin: 0px;
+            }
+            # QSlider::handle:vertical {
+            #     background-color: #ffffff;
+            #     width: 10px;
+            #     height: 20px;
+            #     margin: -5px 0;
+            #     border-radius: 5px;
+            # }
+        """)
+
+
+
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_label)  # 绑定定时器的 timeout 信号到自定义的槽函数 update_label
@@ -39,6 +71,8 @@ class MainWindow(QWidget):
         # y_factor=(pose[1]*1000-initial_pose[1])/10
         self.image_position = (self.image_position[0], self.image_position[1])
         self.image_label.move(*self.image_position)
+        self.slider.setValue(50)
+
 
 
 
