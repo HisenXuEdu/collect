@@ -18,12 +18,15 @@ def record_emg(host):
     print('肌电开始时间：',time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_emg_begin)))
     data_EMG = dev_emg.read()
     for i in range(3):
-        data_EMG += dev_emg.read()
-        assert data_EMG.shape == (channel, dev_emg.samples_per_read)#40*second
+        print(i)
+        # data_EMG += dev_emg.read()
+        data_EMG = np.concatenate((data_EMG,dev_emg.read()),axis=1)
+        # assert data_EMG.shape == (channel, dev_emg.samples_per_read)#40*second
     time_emg_end = time.time()
     time_end_string = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_emg_end))
     print('肌电结束时间：', time_end_string)
-    data_emg_timestamp = np.linspace(int(time_emg_begin*1000), int(time_emg_end*1000)+dev_emg.samples_per_read/2000-1, dev_emg.samples_per_read)  #构建时间戳
+    #这里构造的时间戳维度不对
+    data_emg_timestamp = np.linspace(int(time_emg_begin*1000), int(time_emg_end*1000)+dev_emg.samples_per_read/2000-1, dev_emg.samples_per_read*4)  #构建时间戳
     time_end_string = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(time_emg_end))
     data_EMG = np.vstack((data_emg_timestamp, data_EMG))
     data_EMG = pd.DataFrame(data_EMG, columns=None)
